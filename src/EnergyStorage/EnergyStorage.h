@@ -15,20 +15,23 @@ public:
     void modulateBoiler();
 
     // Accessors
-    int getEnergyExport() const { return _energyExport; }
-    int getEnergyStored() const { return _energyStored; }
+    int getEnergyExport() const { return static_cast<int>(_energyExport + 0.5f); }
+    int getEnergyStored() const { return static_cast<int>(_storedFraction * _maxBoilerPower + 0.5f); }
     int getPercentage() const { return _percentage; }
     bool isBoilerOn() const { return _isBoilerOn; }
 private:
     int _boilerPin;
     int _ledBoilerPin;
 
-    int _energyExport; // int to prevent integeter wrap around
-    int _energyStored; // int to prevent integeter wrap around
+    float _energyExport;
+    float _energyStored;
+    float _storedFraction;
+    float _storageCapacity;
 
     unsigned int _maxBoilerPower;
     int _energyExportBuffer;
 
+    unsigned long _lastUpdateTime;
     unsigned long _cycleStart;
     const unsigned long _cycleLength;
 

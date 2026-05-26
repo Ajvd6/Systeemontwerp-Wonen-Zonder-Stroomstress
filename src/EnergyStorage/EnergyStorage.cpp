@@ -6,8 +6,11 @@ EnergyStorage::EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBu
     _ledBoilerPin(ledBoilerPin),
     _energyExport(0),
     _energyStored(0),
+    _storedFraction(0),
+    _storageCapacity(0),
     _maxBoilerPower(0),
     _energyExportBuffer(energyExportBuffer),
+    _lastUpdateTime(0),
     _cycleStart(0),
     _cycleLength(1000),
     _onTime(0),
@@ -15,7 +18,14 @@ EnergyStorage::EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBu
     _isBoilerOn(false) {}
 
 void EnergyStorage::init(int maxBoilerPower) {
+    const float STORAGE_SECONDS = 10.0f;
+
     _maxBoilerPower = maxBoilerPower;
+    _storageCapacity = _maxBoilerPower * STORAGE_SECONDS;
+    _energyStored = 0.0f;
+    _energyExport = 0.0f;
+    _storedFraction = 0.0f;
+    _lastUpdateTime = millis();
 }
 
 void EnergyStorage::onModbusData(const ModbusData& data) {
@@ -23,33 +33,48 @@ void EnergyStorage::onModbusData(const ModbusData& data) {
 }
 
 void EnergyStorage::updateValues(int energyExport) {
-    if (_isBoilerOn) {
-        _energyExport = 0;
-        _energyStored = 0;
-        _percentage = 0;
-        _onTime = 0;
-        Serial.println("Boiler is on, not storing energy");
-        return; // If boiler is on, we are not storing energy
+    unsigned long now = millis();
+    float deltaSeconds = (now - _lastUpdateTime) / 1000.0f;
+    if (deltaSeconds <= 0.0f) {
+        return;
+    }
+    _lastUpdateTime = now;
+
+    _energyExport = energyExport < 0 ? 0.0f : static_cast<float>(energyExport);
+    float availablePower = _energyExport - _energyExportBuffer;
+    if (availablePower < 0.0f) {
+        availablePower = 0.0f;
     }
 
-    // Treat only positive export as available energy to store
-    _energyExport = energyExport < 0 ? 0 : energyExport;
+    float boilerAveragePower = (_maxBoilerPower * _percentage) / 100.0f;
+    float netPower = availablePower - boilerAveragePower;
+    _energyStored += netPower * deltaSeconds;
 
-    // Available energy after applying buffer
-    int availableToStore = _energyExport - _energyExportBuffer;
-    if (availableToStore < 0) availableToStore = 0;
+    if (_energyStored < 0.0f) {
+        _energyStored = 0.0f;
+    } else if (_energyStored > _storageCapacity) {
+        _energyStored = _storageCapacity;
+    }
 
-    // Update stored energy and clamp to [0, _maxBoilerPower]
-    long newStored = (long)_energyStored + (long)availableToStore;
-    if (newStored < 0) newStored = 0;
-    if (newStored > (long)_maxBoilerPower) newStored = _maxBoilerPower;
-    _energyStored = (int)newStored;
+    float targetFraction = 0.0f;
+    if (_storageCapacity > 0.0f) {
+        targetFraction = _energyStored / _storageCapacity;
+    }
+    if (targetFraction < 0.0f) {
+        targetFraction = 0.0f;
+    } else if (targetFraction > 1.0f) {
+        targetFraction = 1.0f;
+    }
 
-    // Compute percentage (avoid double mapping which quantized values oddly)
-    if (_maxBoilerPower > 0) {
-        _percentage = (int)((100L * _energyStored) / _maxBoilerPower);
-    } else {
+    const float SMOOTHING_ALPHA = 0.2f;
+    _storedFraction = _storedFraction * (1.0f - SMOOTHING_ALPHA) + targetFraction * SMOOTHING_ALPHA;
+
+    _percentage = static_cast<int>(_storedFraction * 100.0f + 0.5f);
+
+    if (_percentage < 0) {
         _percentage = 0;
+    } else if (_percentage > 100) {
+        _percentage = 100;
     }
 
     _onTime = (_percentage * _cycleLength) / 100;
