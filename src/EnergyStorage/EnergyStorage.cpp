@@ -24,21 +24,33 @@ void EnergyStorage::onModbusData(const ModbusData& data) {
 
 void EnergyStorage::updateValues(int energyExport) {
     if (_isBoilerOn) {
+        _energyExport = 0;
         _energyStored = 0;
         _percentage = 0;
-        return; // If boiler is on, we are not storing energy, so skip calculations
-    }
-    _energyExport = energyExport - _energyStored;
-    _energyStored += _energyExport - _energyExportBuffer;
-    
-    if (_energyStored < 0) {
-        _energyStored = 0; // Prevent negative storage
-    } else if (_energyStored > _maxBoilerPower) {
-        _energyStored = _maxBoilerPower; // Cap storage at max boiler power
+        _onTime = 0;
+        Serial.println("Boiler is on, not storing energy");
+        return; // If boiler is on, we are not storing energy
     }
 
-    _percentage = map(_energyStored, 0, _maxBoilerPower, 0, 100);
-    _energyStored = map(_percentage, 0, 100, 0, _maxBoilerPower);
+    // Treat only positive export as available energy to store
+    _energyExport = energyExport < 0 ? 0 : energyExport;
+
+    // Available energy after applying buffer
+    int availableToStore = _energyExport - _energyExportBuffer;
+    if (availableToStore < 0) availableToStore = 0;
+
+    // Update stored energy and clamp to [0, _maxBoilerPower]
+    long newStored = (long)_energyStored + (long)availableToStore;
+    if (newStored < 0) newStored = 0;
+    if (newStored > (long)_maxBoilerPower) newStored = _maxBoilerPower;
+    _energyStored = (int)newStored;
+
+    // Compute percentage (avoid double mapping which quantized values oddly)
+    if (_maxBoilerPower > 0) {
+        _percentage = (int)((100L * _energyStored) / _maxBoilerPower);
+    } else {
+        _percentage = 0;
+    }
 
     _onTime = (_percentage * _cycleLength) / 100;
 }

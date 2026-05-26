@@ -75,12 +75,12 @@ int measureBoilerPower() {
     delay(boilerPowerDelay);
 
     for (int i = 0; i < 3; i++) {
-        int baseline = modbusManager.readReg(CURRENT_ADDR);
+        int baseline = modbusManager.readReg(ACTIVE_POWER_ADDR);
         digitalWrite(BOILER_PIN, HIGH);
         digitalWrite(LED_BOILER_PIN, HIGH);
         delay(boilerPowerDelay);
         
-        int newCurrent = modbusManager.readReg(CURRENT_ADDR);
+        int newCurrent = modbusManager.readReg(ACTIVE_POWER_ADDR);
         digitalWrite(BOILER_PIN, LOW);
         digitalWrite(LED_BOILER_PIN, LOW);
         delay(boilerPowerDelay);
@@ -128,6 +128,7 @@ void setup() {
 
     // Initialize energy storage
     energyStorage.init(measureBoilerPower());
+    // energyStorage.init(2300);
     Serial.println("Initialized energy storage");
 
     // Initialize display

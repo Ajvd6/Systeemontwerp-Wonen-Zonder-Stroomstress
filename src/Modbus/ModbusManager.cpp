@@ -10,14 +10,12 @@ ModbusManager::ModbusManager(int RX_pin, int TX_pin, int rs485_control_pin, int 
     _slaveId(slave_ID),
     _current{0, 0},
     _activePower{0, 0},
-    _importEnergy{0, 0},
-    _exportEnergy{0, 0},
     _state(0),
     _isReady(false),
     _pendingRequestGroup(RegNone),
     _lastRequestTime(0),
     _timeout(250),
-    _data{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, false},
+    _data{0.0f, 0.0f, 0.0f, 0, false},
     _listenerCount(0) {
     _instance = this;
 }
@@ -45,10 +43,6 @@ void ModbusManager::update() {
         _current[1] = 0;
         _activePower[0] = 0;
         _activePower[1] = 0;
-        _importEnergy[0] = 0;
-        _importEnergy[1] = 0;
-        _exportEnergy[0] = 0;
-        _exportEnergy[1] = 0;
         _data.valid = false;
         _isReady = true;
         _pendingRequestGroup = RegNone;
@@ -73,14 +67,6 @@ void ModbusManager::readAllRegs() {
             buffer = _activePower;
             address = ACTIVE_POWER_ADDR;
             break;
-        case RegImportEnergy:
-            buffer = _importEnergy;
-            address = IMPORT_ENERGY_ADDR;
-            break;
-        case RegExportEnergy:
-            buffer = _exportEnergy;
-            address = EXPORT_ENERGY_ADDR;
-            break;
         default:
             Serial.println("[ERROR] Unexpected state trying to read Modbus registers");
             return;
@@ -88,7 +74,7 @@ void ModbusManager::readAllRegs() {
 
     _pendingRequestGroup = group;
     _mb.readIreg(_slaveId, address, buffer, 2, cbRead);
-    _state = (_state + 1) % 4;
+    _state = (_state + 1) % 2;
     _isReady = false;
     _lastRequestTime = millis();
     _mb.task();
@@ -166,7 +152,7 @@ bool ModbusManager::handleReadResponse(Modbus::ResultCode event, uint16_t transa
 
     updateDataFromRegs(_pendingRequestGroup);
 
-    if (_pendingRequestGroup == RegExportEnergy) {
+    if (_pendingRequestGroup == RegActivePower) {
         _data.timestamp = millis();
         _data.valid = true;
         notifyListeners();
@@ -186,12 +172,6 @@ void ModbusManager::updateDataFromRegs(RequestGroup group) {
         case RegActivePower:
             regs = _activePower;
             break;
-        case RegImportEnergy:
-            regs = _importEnergy;
-            break;
-        case RegExportEnergy:
-            regs = _exportEnergy;
-            break;
         default:
             return;
     }
@@ -205,12 +185,6 @@ void ModbusManager::updateDataFromRegs(RequestGroup group) {
         case RegActivePower:
             _data.activePower = value;
             _data.wattageExport = value < 0 ? -value : 0;
-            break;
-        case RegImportEnergy:
-            _data.importEnergy = value;
-            break;
-        case RegExportEnergy:
-            _data.exportEnergy = value;
             break;
         default:
             break;

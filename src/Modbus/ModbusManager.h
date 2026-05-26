@@ -7,15 +7,11 @@
 
 const uint16_t CURRENT_ADDR             = 0x0006;
 const uint16_t ACTIVE_POWER_ADDR        = 0x000C;
-const uint16_t IMPORT_ENERGY_ADDR       = 0x0048;  // Import active energy in kWh
-const uint16_t EXPORT_ENERGY_ADDR       = 0x004A;  // Export active energy in kWh
 
 struct ModbusData {
     float totalCurrent;
     float activePower;
     float wattageExport;
-    float importEnergy;
-    float exportEnergy;
     unsigned long timestamp;
     bool valid;
 };
@@ -59,22 +55,12 @@ public:
         return _data.activePower < 0;
     }
 
-    float getImportEnergy() const {
-        return _data.importEnergy;
-    }
-
-    float getExportEnergy() const {
-        return _data.exportEnergy;
-    }
-
     bool isReady() const { return _isReady; }
 
 private:
     enum RequestGroup : int {
         RegCurrent = 0,
         RegActivePower = 1,
-        RegImportEnergy = 2,
-        RegExportEnergy = 3,
         RegNone = -1
     };
 
@@ -88,8 +74,6 @@ private:
 
     uint16_t _current[2];
     uint16_t _activePower[2];
-    uint16_t _importEnergy[2];
-    uint16_t _exportEnergy[2];
 
     int _state;
     bool _isReady;
