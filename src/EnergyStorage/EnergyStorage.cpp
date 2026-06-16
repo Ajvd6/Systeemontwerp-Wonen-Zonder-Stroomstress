@@ -15,7 +15,16 @@ EnergyStorage::EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBu
     _cycleLength(1000),
     _onTime(0),
     _percentage(0),
-    _isBoilerOn(false) {}
+    _isBoilerOn(false),
+    _boilerHealthy(true),
+    _totalCurrent(0.0f),
+    _lastBoilerCheckTime(0),
+    _boilerCheckStartTime(0),
+    _boilerCheckInterval(1UL * 60UL * 1000UL),
+    _boilerCheckDuration(2000UL),
+    _boilerCheckBaselineCurrent(0.0f),
+    _boilerCheckBaselineExport(0.0f),
+    _boilerCheckRunning(false) {}
 
 void EnergyStorage::init(int maxBoilerPower) {
     const float STORAGE_SECONDS = 10.0f;
@@ -25,14 +34,18 @@ void EnergyStorage::init(int maxBoilerPower) {
     _energyStored = 0.0f;
     _energyExport = 0.0f;
     _storedFraction = 0.0f;
+    _totalCurrent = 0.0f;
     _lastUpdateTime = millis();
+    _lastBoilerCheckTime = millis();
+    _boilerCheckRunning = false;
+    _boilerHealthy = true;
 }
 
 void EnergyStorage::onModbusData(const ModbusData& data) {
-    updateValues(static_cast<int>(data.wattageExport));
+    updateValues(static_cast<int>(data.wattageExport), data.totalCurrent);
 }
 
-void EnergyStorage::updateValues(int energyExport) {
+void EnergyStorage::updateValues(int energyExport, float totalCurrent) {
     unsigned long now = millis();
     float deltaSeconds = (now - _lastUpdateTime) / 1000.0f;
     if (deltaSeconds <= 0.0f) {
@@ -41,6 +54,8 @@ void EnergyStorage::updateValues(int energyExport) {
     _lastUpdateTime = now;
 
     _energyExport = energyExport < 0 ? 0.0f : static_cast<float>(energyExport);
+    _totalCurrent = totalCurrent < 0.0f ? 0.0f : totalCurrent;
+
     float availablePower = _energyExport - _energyExportBuffer;
     if (availablePower < 0.0f) {
         availablePower = 0.0f;
@@ -77,15 +92,68 @@ void EnergyStorage::updateValues(int energyExport) {
         _percentage = 100;
     }
 
-    _onTime = (_percentage * _cycleLength) / 100;
+    // _onTime = (_percentage * _cycleLength) / 100;
+    _onTime = 1000;
+}
+
+void EnergyStorage::startBoilerCheck() {
+    _boilerCheckBaselineCurrent = _totalCurrent;
+    _boilerCheckBaselineExport = _energyExport;
+    _boilerCheckStartTime = millis();
+    _boilerCheckRunning = true;
+}
+
+void EnergyStorage::evaluateBoilerCheck() {
+    const float MIN_CURRENT_DELTA = 0.2f;   // amps
+    const float MIN_EXPORT_DELTA = 50.0f;   // watts
+
+    float currentDelta = _totalCurrent - _boilerCheckBaselineCurrent;
+    float exportDelta = _boilerCheckBaselineExport - _energyExport;
+    bool passed = (currentDelta >= MIN_CURRENT_DELTA) || (exportDelta >= MIN_EXPORT_DELTA);
+
+    if (passed) {
+        _boilerHealthy = true;
+    } else {
+        _isBoilerOn = false;
+        _boilerHealthy = false;
+        digitalWrite(_boilerPin, LOW);
+        digitalWrite(_ledBoilerPin, LOW);
+    }
+
+    _boilerCheckRunning = false;
+    _lastBoilerCheckTime = millis();
 }
 
 void EnergyStorage::modulateBoiler() {
-    if(millis() - _cycleStart >= _cycleLength) {
-        _cycleStart = millis(); // Start new cycle
+    unsigned long now = millis();
+
+    if (!_boilerCheckRunning && (now - _lastBoilerCheckTime >= _boilerCheckInterval)) {
+        startBoilerCheck();
     }
 
-    if(millis() - _cycleStart < _onTime) {
+    if (_boilerCheckRunning) {
+        if (now - _boilerCheckStartTime >= _boilerCheckDuration) {
+            evaluateBoilerCheck();
+        } else {
+            _isBoilerOn = true;
+            digitalWrite(_boilerPin, HIGH);
+            digitalWrite(_ledBoilerPin, HIGH);
+            return;
+        }
+    }
+
+    if (!_boilerHealthy) {
+        _isBoilerOn = false;
+        digitalWrite(_boilerPin, LOW);
+        digitalWrite(_ledBoilerPin, LOW);
+        return;
+    }
+
+    if(now - _cycleStart >= _cycleLength) {
+        _cycleStart = now; // Start new cycle
+    }
+
+    if(now - _cycleStart < _onTime) {
         _isBoilerOn = true;
         digitalWrite(_boilerPin, HIGH); // Boiler ON
         digitalWrite(_ledBoilerPin, HIGH); // LED ON
