@@ -25,16 +25,12 @@ void DisplayManager::init() {
     _lcd.print("W");
 
     _lcd.setCursor(0, 3);
-    _lcd.print("Percentage:");
-    _lcd.setCursor(19, 3);
-    _lcd.print("%");
+    _lcd.print("Boiler:");
+    _lcd.setCursor(13, 3);
+    _lcd.print("On/Off");
 }
 
 void DisplayManager::printStatus(bool isBoilerOn, float currentImport, int energyExport, int energyStored, int percentage) {
-    if (isBoilerOn) {
-        energyStored = 0;
-        percentage = 0;
-    }
 
     _lcd.setCursor(VALUE_ROW_START, 0);
     _lcd.print("      ");
@@ -54,6 +50,6 @@ void DisplayManager::printStatus(bool isBoilerOn, float currentImport, int energ
     _lcd.setCursor(VALUE_ROW_START, 3);
     _lcd.print("      ");
     _lcd.setCursor(VALUE_ROW_START, 3);
-    _lcd.print(percentage);
+    _lcd.print(isBoilerOn ? "On" : "Off");
 }
 
