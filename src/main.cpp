@@ -11,7 +11,7 @@ const int TX_PIN                        = 3;
 const int RS485_CONTROL_PIN             = 7;
 const int MODBUS_SLAVE_ID               = 1;
 
-const int SG_PIN                        = 6;
+const int SG_PIN                        = 5;
 const int LED_SG_PIN                    = 13;
 const int BOILER_PIN                    = 9;
 const int LED_BOILER_PIN                = 12;
@@ -128,7 +128,6 @@ void setup() {
 
     // Initialize energy storage
     energyStorage.init(measureBoilerPower());
-    // energyStorage.init(2300);
     Serial.println("Initialized energy storage");
 
     // Initialize display

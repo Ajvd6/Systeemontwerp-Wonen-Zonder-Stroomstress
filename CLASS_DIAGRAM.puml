@@ -1,0 +1,105 @@
+@startuml
+' Class diagram for Systeemontwerp_WZS
+
+class ModbusData {
+  +float totalCurrent
+  +float activePower
+  +float wattageExport
+  +unsigned long timestamp
+  +bool valid
+}
+
+interface IModbusListener {
+  +void onModbusData(const ModbusData& data)
+}
+
+class ModbusManager {
+  +ModbusManager(int RX_pin, int TX_pin, int rs485_control_pin, int slave_ID)
+  +void init()
+  +void update()
+  +void readAllRegs()
+  +uint16_t readReg(int regAddr)
+  +bool addListener(IModbusListener* listener)
+  +bool removeListener(IModbusListener* listener)
+  +const ModbusData& getData() const
+  +float getTotalCurrent() const
+  +float getActivePower() const
+  +float getWattageExport() const
+  +bool isExporting() const
+  +bool isReady() const
+}
+
+class LoadBalancer {
+  +LoadBalancer(int SG_pin, int LED_SG_pin)
+  +void init()
+  +void onModbusData(const ModbusData& data)
+  +void updateValues(float totalCurrentImport)
+  +void checkLoadBalancing()
+  +float getTotalCurrentImport() const
+  +bool isHeatpumpEnabled() const
+}
+
+class EnergyStorage {
+  +EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBuffer)
+  +void init(int maxBoilerPower)
+  +void onModbusData(const ModbusData& data)
+  +void updateValues(int energyExport)
+  +void modulateBoiler()
+  +int getEnergyExport() const
+  +int getEnergyStored() const
+  +int getPercentage() const
+  +bool isBoilerOn() const
+}
+
+class DisplayManager {
+  +DisplayManager(uint8_t address, uint8_t cols, uint8_t rows)
+  +void init()
+  +void printStatus(bool isBoilerOn, float currentImport, int energyExport, int energyStored, int percentage)
+}
+
+class Scheduler {
+  +Scheduler()
+  +bool addTask(SchedulerTaskHandler handler, unsigned long interval, bool runImmediately = false)
+  +void run()
+  +void reset()
+}
+
+class SchedulerTask {
+  +SchedulerTaskHandler handler
+  +unsigned long interval
+  +unsigned long lastRun
+  +bool active
+}
+
+ModbusManager "1" o-- "*" IModbusListener : listeners
+IModbusListener <|-- LoadBalancer
+IModbusListener <|-- EnergyStorage
+ModbusManager --> ModbusData
+LoadBalancer --> ModbusData
+EnergyStorage --> ModbusData
+Scheduler "1" o-- "*" SchedulerTask
+
+note right of ModbusManager
+  Uses SoftwareSerial and ModbusRTU
+  Maintains request state and listener list
+end note
+
+note right of LoadBalancer
+  Implements load shedding logic
+  Controls SG pin and status LED
+end note
+
+note right of EnergyStorage
+  Manages stored energy
+  Controls boiler pin and LED
+end note
+
+note right of DisplayManager
+  Draws display values to LCD
+end note
+
+note right of Scheduler
+  Runs periodic tasks from main.cpp
+end note
+
+@enduml

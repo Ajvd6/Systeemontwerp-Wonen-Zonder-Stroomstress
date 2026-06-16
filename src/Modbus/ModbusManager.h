@@ -82,6 +82,11 @@ private:
     const unsigned long _timeout;
 
     ModbusData _data;
+    float _stableTotalCurrent;
+    float _stableWattageExport;
+    uint8_t _zeroCurrentCount;
+    uint8_t _zeroExportCount;
+
     IModbusListener* _listeners[MAX_LISTENERS];
     uint8_t _listenerCount;
 

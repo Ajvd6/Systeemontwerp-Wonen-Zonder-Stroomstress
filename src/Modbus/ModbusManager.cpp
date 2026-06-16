@@ -16,6 +16,10 @@ ModbusManager::ModbusManager(int RX_pin, int TX_pin, int rs485_control_pin, int 
     _lastRequestTime(0),
     _timeout(250),
     _data{0.0f, 0.0f, 0.0f, 0, false},
+    _stableTotalCurrent(0.0f),
+    _stableWattageExport(0.0f),
+    _zeroCurrentCount(0),
+    _zeroExportCount(0),
     _listenerCount(0) {
     _instance = this;
 }
@@ -179,13 +183,45 @@ void ModbusManager::updateDataFromRegs(RequestGroup group) {
     float value = convertToFloat(regs);
 
     switch (group) {
-        case RegCurrent:
-            _data.totalCurrent = value;
+        case RegCurrent: {
+            float currentValue = value < 0.0f ? 0.0f : value;
+            if (currentValue <= 0.0f) {
+                if (_zeroCurrentCount < 255) {
+                    _zeroCurrentCount++;
+                }
+            } else {
+                _zeroCurrentCount = 0;
+                _stableTotalCurrent = currentValue;
+            }
+
+            if (_zeroCurrentCount >= 5) {
+                _data.totalCurrent = 0.0f;
+                _stableTotalCurrent = 0.0f;
+            } else {
+                _data.totalCurrent = _stableTotalCurrent;
+            }
             break;
-        case RegActivePower:
+        }
+        case RegActivePower: {
             _data.activePower = value;
-            _data.wattageExport = value < 0 ? -value : 0;
+            float exportValue = value < 0.0f ? -value : 0.0f;
+            if (exportValue <= 0.0f) {
+                if (_zeroExportCount < 255) {
+                    _zeroExportCount++;
+                }
+            } else {
+                _zeroExportCount = 0;
+                _stableWattageExport = exportValue;
+            }
+
+            if (_zeroExportCount >= 5) {
+                _data.wattageExport = 0.0f;
+                _stableWattageExport = 0.0f;
+            } else {
+                _data.wattageExport = _stableWattageExport;
+            }
             break;
+        }
         default:
             break;
     }
