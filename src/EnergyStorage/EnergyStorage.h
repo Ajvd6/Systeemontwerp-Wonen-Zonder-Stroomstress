@@ -11,7 +11,7 @@ public:
     void init(int maxBoilerPower);
 
     void onModbusData(const ModbusData& data) override;
-    void updateValues(int energyExport, float totalCurrent);
+    void updateValues(int energyExport, float totalCurrent, float activePower);
     void modulateBoiler();
 
     // Accessors
@@ -45,12 +45,14 @@ private:
     bool _boilerHealthy;
 
     float _totalCurrent;
+    float _activePower;
     unsigned long _lastBoilerCheckTime;
     unsigned long _boilerCheckStartTime;
     const unsigned long _boilerCheckInterval;
     const unsigned long _boilerCheckDuration;
-    float _boilerCheckBaselineCurrent;
-    float _boilerCheckBaselineExport;
+    float _boilerCheckBaselineActivePower;
+    float _boilerCheckSumActivePower;
+    int _boilerCheckSamples;
     bool _boilerCheckRunning;
 
     void evaluateBoilerCheck();

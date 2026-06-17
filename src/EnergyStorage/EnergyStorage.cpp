@@ -22,8 +22,9 @@ EnergyStorage::EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBu
     _boilerCheckStartTime(0),
     _boilerCheckInterval(1UL * 10UL * 1000UL),
     _boilerCheckDuration(500UL),
-    _boilerCheckBaselineCurrent(0.0f),
-    _boilerCheckBaselineExport(0.0f),
+    _boilerCheckBaselineActivePower(0.0f),
+    _boilerCheckSumActivePower(0.0f),
+    _boilerCheckSamples(0),
     _boilerCheckRunning(false) {}
 
 void EnergyStorage::init(int maxBoilerPower) {
@@ -42,10 +43,10 @@ void EnergyStorage::init(int maxBoilerPower) {
 }
 
 void EnergyStorage::onModbusData(const ModbusData& data) {
-    updateValues(static_cast<int>(data.wattageExport), data.totalCurrent);
+    updateValues(static_cast<int>(data.wattageExport), data.totalCurrent, data.activePower);
 }
 
-void EnergyStorage::updateValues(int energyExport, float totalCurrent) {
+void EnergyStorage::updateValues(int energyExport, float totalCurrent, float activePower) {
     unsigned long now = millis();
     float deltaSeconds = (now - _lastUpdateTime) / 1000.0f;
     if (deltaSeconds <= 0.0f) {
@@ -55,6 +56,7 @@ void EnergyStorage::updateValues(int energyExport, float totalCurrent) {
 
     _energyExport = energyExport < 0 ? 0.0f : static_cast<float>(energyExport);
     _totalCurrent = totalCurrent < 0.0f ? 0.0f : totalCurrent;
+    _activePower = activePower;
 
     float availablePower = _energyExport - _energyExportBuffer;
     if (availablePower < 0.0f) {
@@ -97,16 +99,19 @@ void EnergyStorage::updateValues(int energyExport, float totalCurrent) {
 }
 
 void EnergyStorage::evaluateBoilerCheck() {
-    const float MIN_CURRENT_DELTA = 0.05f;   // amps (lowered for sensitivity)
-    const float MIN_EXPORT_DELTA = 20.0f;    // watts (lowered for sensitivity)
+    // Health determined by the average active power seen while the boiler is forced on
+    const float MIN_ACTIVE_POWER_DELTA = 20.0f;   // watts: require noticeable boiler power draw to consider it working
+    const float MIN_SAMPLE_COUNT = 2;             // require at least a few samples
 
-    float currentDelta = _totalCurrent - _boilerCheckBaselineCurrent;
-    float exportDelta = _boilerCheckBaselineExport - _energyExport;
-    bool passed = (currentDelta >= MIN_CURRENT_DELTA) || (exportDelta >= MIN_EXPORT_DELTA);
+    float averageActivePower = (_boilerCheckSamples > 0) ? (_boilerCheckSumActivePower / _boilerCheckSamples) : _activePower;
+    float activePowerDelta = averageActivePower - _boilerCheckBaselineActivePower;
+    bool passed = (_boilerCheckSamples >= MIN_SAMPLE_COUNT) && (activePowerDelta >= MIN_ACTIVE_POWER_DELTA);
 
     if (passed) {
+        // Boiler draws current on average -> mark healthy
         _boilerHealthy = true;
     } else {
+        // No significant draw -> mark unhealthy and ensure it's off
         _isBoilerOn = false;
         _boilerHealthy = false;
         _energyStored = 0.0f;
@@ -124,19 +129,23 @@ void EnergyStorage::evaluateBoilerCheck() {
 void EnergyStorage::modulateBoiler() {
     unsigned long now = millis();
 
-    // If boiler is not running and it's time to check
-    if (!_boilerCheckRunning && (now - _lastBoilerCheckTime >= _boilerCheckInterval)) {
-        _boilerCheckBaselineCurrent = _totalCurrent;
-        _boilerCheckBaselineExport = _energyExport;
+    // Only start a health check if the boiler is currently off and enough time has passed
+    if (!_boilerCheckRunning && !_isBoilerOn && (now - _lastBoilerCheckTime >= _boilerCheckInterval)) {
+        _boilerCheckBaselineActivePower = _activePower;
+        _boilerCheckSumActivePower = 0.0f;
+        _boilerCheckSamples = 0;
         _boilerCheckStartTime = millis();
         _boilerCheckRunning = true;
     }
 
     // If boiler check is running
     if (_boilerCheckRunning) {
+        // If the check duration has passed, evaluate the results
         if (now - _boilerCheckStartTime >= _boilerCheckDuration) {
             evaluateBoilerCheck();
-        } else {
+        } else { // If the check is still running, turn on the boiler for the check
+            _boilerCheckSumActivePower += _activePower;
+            _boilerCheckSamples += 1;
             _isBoilerOn = true;
             digitalWrite(_boilerPin, HIGH);
             digitalWrite(_ledBoilerPin, HIGH);
@@ -144,6 +153,7 @@ void EnergyStorage::modulateBoiler() {
         }
     }
 
+    // If the boiler is not healthy, ensure it's turned off
     if (!_boilerHealthy) {
         _isBoilerOn = false;
         digitalWrite(_boilerPin, LOW);
@@ -151,10 +161,12 @@ void EnergyStorage::modulateBoiler() {
         return;
     }
 
+    // Determine if we are in the ON phase of the cycle
     if(now - _cycleStart >= _cycleLength) {
         _cycleStart = now; // Start new cycle
     }
 
+    // Determine if the boiler should be ON or OFF based on the current cycle
     if(now - _cycleStart < _onTime) {
         _isBoilerOn = true;
         digitalWrite(_boilerPin, HIGH); // Boiler ON

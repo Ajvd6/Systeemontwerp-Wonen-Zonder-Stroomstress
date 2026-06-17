@@ -47,19 +47,27 @@ void energyStorageModulateTask() {
 }
 
 void displayTask() {
+    int exportValue = energyStorage.isBoilerHealthy()
+        ? energyStorage.getEnergyExport()
+        : static_cast<int>(modbusManager.getWattageExport() + 0.5f);
+
     display.printStatus(
         modbusManager.getTotalCurrent(),
-        energyStorage.getEnergyExport(),
+        exportValue,
         energyStorage.getEnergyStored(),
         energyStorage.isBoilerHealthy()
     );
 }
 
 void serialTask() {
+    int exportValue = energyStorage.isBoilerHealthy()
+        ? energyStorage.getEnergyExport()
+        : static_cast<int>(modbusManager.getWattageExport() + 0.5f);
+
     Serial.print("Total current: ");
     Serial.print(modbusManager.getTotalCurrent());
     Serial.print(" A, Export: ");
-    Serial.print(energyStorage.getEnergyExport());
+    Serial.print(exportValue);
     Serial.print(" W, Stored: ");
     Serial.print(energyStorage.getEnergyStored());
     Serial.print(" W, Percentage: ");
