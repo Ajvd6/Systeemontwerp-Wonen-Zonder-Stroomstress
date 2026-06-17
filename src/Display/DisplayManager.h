@@ -11,6 +11,7 @@ public:
     DisplayManager(uint8_t address, uint8_t cols, uint8_t rows);
 
     void init();
+    void setup();
 
     void printStatus(bool isBoilerOn, float currentImport, int energyExport, int energyStored, int percentage);
 

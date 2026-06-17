@@ -117,6 +117,10 @@ void setup() {
 
     digitalWrite(BOILER_PIN, LOW);
     digitalWrite(LED_BOILER_PIN, LOW);
+
+    // Initialize display
+    display.init();
+    Serial.println("Initialized display");
     
     // Initialize Modbus manager
     modbusManager.init();
@@ -130,13 +134,11 @@ void setup() {
     energyStorage.init(measureBoilerPower());
     Serial.println("Initialized energy storage");
 
-    // Initialize display
-    display.init();
-    Serial.println("Initialized display");
-
     // Subscribe to Modbus updates
     modbusManager.addListener(&loadBalancer);
     modbusManager.addListener(&energyStorage);
+
+    display.setup();
 
     // Register scheduled tasks
     scheduler.addTask(modbusPollTask, MODBUS_READ_INTERVAL, true);

@@ -20,6 +20,7 @@ public:
     int getPercentage() const { return _percentage; }
     bool isBoilerOn() const { return _isBoilerOn; }
     bool isBoilerHealthy() const { return _boilerHealthy; }
+    
 private:
     int _boilerPin;
     int _ledBoilerPin;

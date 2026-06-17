@@ -17,24 +17,24 @@ EnergyStorage::EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBu
     _percentage(0),
     _isBoilerOn(false),
     _boilerHealthy(true),
-    _totalCurrent(0.0f),
+    _totalCurrent(0.0),
     _lastBoilerCheckTime(0),
     _boilerCheckStartTime(0),
-    _boilerCheckInterval(1UL * 60UL * 1000UL),
-    _boilerCheckDuration(2000UL),
-    _boilerCheckBaselineCurrent(0.0f),
-    _boilerCheckBaselineExport(0.0f),
+    _boilerCheckInterval(1 * 60 * 1000),
+    _boilerCheckDuration(500),
+    _boilerCheckBaselineCurrent(0.0),
+    _boilerCheckBaselineExport(0.0),
     _boilerCheckRunning(false) {}
 
 void EnergyStorage::init(int maxBoilerPower) {
-    const float STORAGE_SECONDS = 10.0f;
+    const float STORAGE_SECONDS = 10.0;
 
     _maxBoilerPower = maxBoilerPower;
     _storageCapacity = _maxBoilerPower * STORAGE_SECONDS;
-    _energyStored = 0.0f;
-    _energyExport = 0.0f;
-    _storedFraction = 0.0f;
-    _totalCurrent = 0.0f;
+    _energyStored = 0.0;
+    _energyExport = 0.0;
+    _storedFraction = 0.0;
+    _totalCurrent = 0.0;
     _lastUpdateTime = millis();
     _lastBoilerCheckTime = millis();
     _boilerCheckRunning = false;

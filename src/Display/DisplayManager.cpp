@@ -10,6 +10,13 @@ void DisplayManager::init() {
     _lcd.clear();
 
     _lcd.setCursor(0, 0);
+    _lcd.print("Initializing...");
+}
+
+void DisplayManager::setup() {
+    _lcd.clear();
+
+    _lcd.setCursor(0, 0);
     _lcd.print("Verbruik:");
     _lcd.setCursor(19, 0);
     _lcd.print("A");
