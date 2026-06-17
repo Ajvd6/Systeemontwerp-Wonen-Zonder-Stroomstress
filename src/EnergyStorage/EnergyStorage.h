@@ -16,6 +16,16 @@ public:
 
     // Accessors
     int getEnergyExport() const { return static_cast<int>(_energyExport + 0.5f); }
+    int getEffectiveExport() const {
+        int effectiveExport = static_cast<int>(_energyExport + 0.5f);
+        if (_boilerHealthy) {
+            effectiveExport -= getEnergyStored();
+            if (effectiveExport < 0) {
+                effectiveExport = 0;
+            }
+        }
+        return effectiveExport;
+    }
     int getEnergyStored() const { return _boilerHealthy ? static_cast<int>(_percentage * _maxBoilerPower / 100.0f + 0.5f) : 0; }
     int getPercentage() const { return _boilerHealthy ? _percentage : 0; }
     bool isBoilerOn() const { return _isBoilerOn; }
