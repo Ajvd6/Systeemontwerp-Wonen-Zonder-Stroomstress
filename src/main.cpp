@@ -48,11 +48,10 @@ void energyStorageModulateTask() {
 
 void displayTask() {
     display.printStatus(
-        energyStorage.isBoilerOn(),
         modbusManager.getTotalCurrent(),
         energyStorage.getEnergyExport(),
         energyStorage.getEnergyStored(),
-        energyStorage.getPercentage()
+        energyStorage.isBoilerHealthy()
     );
 }
 
@@ -65,7 +64,10 @@ void serialTask() {
     Serial.print(energyStorage.getEnergyStored());
     Serial.print(" W, Percentage: ");
     Serial.print(energyStorage.getPercentage());
-    Serial.println(" %");
+    Serial.print(" %, BoilerOn: ");
+    Serial.print(energyStorage.isBoilerOn() ? "true" : "false");
+    Serial.print(", Healthy: ");
+    Serial.println(energyStorage.isBoilerHealthy() ? "true" : "false");
 }
 
 // Function to measure boiler total power

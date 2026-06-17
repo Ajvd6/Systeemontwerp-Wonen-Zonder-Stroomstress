@@ -50,7 +50,7 @@ void DisplayManager::boilerUpdate(int boilerMeasurement, int index) {
     _lcd.print("W");
 }
 
-void DisplayManager::printStatus(bool isBoilerOn, float currentImport, int energyExport, int energyStored, int percentage) {
+void DisplayManager::printStatus(float currentImport, int energyExport, int energyStored, bool isBoilerOn) {
 
     _lcd.setCursor(VALUE_ROW_START, 0);
     _lcd.print("      ");

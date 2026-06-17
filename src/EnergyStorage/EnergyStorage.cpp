@@ -21,7 +21,7 @@ EnergyStorage::EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBu
     _lastBoilerCheckTime(0),
     _boilerCheckStartTime(0),
     _boilerCheckInterval(1UL * 10UL * 1000UL),
-    _boilerCheckDuration(500),
+    _boilerCheckDuration(500UL),
     _boilerCheckBaselineCurrent(0.0f),
     _boilerCheckBaselineExport(0.0f),
     _boilerCheckRunning(false) {}
@@ -63,7 +63,10 @@ void EnergyStorage::updateValues(int energyExport, float totalCurrent) {
 
     float boilerAveragePower = (_maxBoilerPower * _percentage) / 100.0f;
     float netPower = availablePower - boilerAveragePower;
-    _energyStored += netPower * deltaSeconds;
+
+    if (_boilerHealthy) {
+        _energyStored += netPower * deltaSeconds;
+    }
 
     if (_energyStored < 0.0f) {
         _energyStored = 0.0f;
@@ -81,31 +84,21 @@ void EnergyStorage::updateValues(int energyExport, float totalCurrent) {
         targetFraction = 1.0f;
     }
 
-    const float SMOOTHING_ALPHA = 0.2f;
-    _storedFraction = _storedFraction * (1.0f - SMOOTHING_ALPHA) + targetFraction * SMOOTHING_ALPHA;
-
+    _storedFraction = targetFraction;
     _percentage = static_cast<int>(_storedFraction * 100.0f + 0.5f);
 
-    if (_percentage < 0) {
+    if (!_boilerHealthy) {
+        _energyStored = 0.0f;
+        _storedFraction = 0.0f;
         _percentage = 0;
-    } else if (_percentage > 100) {
-        _percentage = 100;
     }
 
-    // _onTime = (_percentage * _cycleLength) / 100;
-    _onTime = 1000;
-}
-
-void EnergyStorage::startBoilerCheck() {
-    _boilerCheckBaselineCurrent = _totalCurrent;
-    _boilerCheckBaselineExport = _energyExport;
-    _boilerCheckStartTime = millis();
-    _boilerCheckRunning = true;
+    _onTime = (_percentage * _cycleLength) / 100;
 }
 
 void EnergyStorage::evaluateBoilerCheck() {
-    const float MIN_CURRENT_DELTA = 0.2f;   // amps
-    const float MIN_EXPORT_DELTA = 50.0f;   // watts
+    const float MIN_CURRENT_DELTA = 0.05f;   // amps (lowered for sensitivity)
+    const float MIN_EXPORT_DELTA = 20.0f;    // watts (lowered for sensitivity)
 
     float currentDelta = _totalCurrent - _boilerCheckBaselineCurrent;
     float exportDelta = _boilerCheckBaselineExport - _energyExport;
@@ -116,6 +109,10 @@ void EnergyStorage::evaluateBoilerCheck() {
     } else {
         _isBoilerOn = false;
         _boilerHealthy = false;
+        _energyStored = 0.0f;
+        _storedFraction = 0.0f;
+        _percentage = 0;
+        _onTime = 0;
         digitalWrite(_boilerPin, LOW);
         digitalWrite(_ledBoilerPin, LOW);
     }
@@ -127,10 +124,15 @@ void EnergyStorage::evaluateBoilerCheck() {
 void EnergyStorage::modulateBoiler() {
     unsigned long now = millis();
 
+    // If boiler is not running and it's time to check
     if (!_boilerCheckRunning && (now - _lastBoilerCheckTime >= _boilerCheckInterval)) {
-        startBoilerCheck();
+        _boilerCheckBaselineCurrent = _totalCurrent;
+        _boilerCheckBaselineExport = _energyExport;
+        _boilerCheckStartTime = millis();
+        _boilerCheckRunning = true;
     }
 
+    // If boiler check is running
     if (_boilerCheckRunning) {
         if (now - _boilerCheckStartTime >= _boilerCheckDuration) {
             evaluateBoilerCheck();

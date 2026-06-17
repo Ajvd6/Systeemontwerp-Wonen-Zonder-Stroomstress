@@ -14,7 +14,7 @@ public:
     void setup();
     void boilerUpdate(int boilerMeasurement, int index);
 
-    void printStatus(bool isBoilerOn, float currentImport, int energyExport, int energyStored, int percentage);
+    void printStatus(float currentImport, int energyExport, int energyStored, bool isBoilerOn);
 
 private:
     LiquidCrystal_I2C _lcd;
