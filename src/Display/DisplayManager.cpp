@@ -10,10 +10,11 @@ void DisplayManager::init() {
     _lcd.clear();
 
     _lcd.setCursor(0, 0);
-    _lcd.print("Initializing...");
+    _lcd.print("Initialisatie...");
 }
 
 void DisplayManager::setup() {
+    delay(1000);
     _lcd.clear();
 
     _lcd.setCursor(0, 0);
@@ -35,6 +36,18 @@ void DisplayManager::setup() {
     _lcd.print("Boiler:");
     _lcd.setCursor(13, 3);
     _lcd.print("On/Off");
+}
+
+void DisplayManager::boilerUpdate(int boilerMeasurement, int index) {
+    _lcd.setCursor(0, 0);
+    _lcd.print("Boiler vermogen:");
+
+    _lcd.setCursor(0, index+1);
+    _lcd.print("Meting:");
+    _lcd.setCursor(13, index+1);
+    _lcd.print(boilerMeasurement);
+    _lcd.setCursor(19, index+1);
+    _lcd.print("W");
 }
 
 void DisplayManager::printStatus(bool isBoilerOn, float currentImport, int energyExport, int energyStored, int percentage) {

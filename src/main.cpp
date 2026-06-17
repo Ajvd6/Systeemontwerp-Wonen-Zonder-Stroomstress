@@ -86,6 +86,7 @@ int measureBoilerPower() {
         delay(boilerPowerDelay);
         
         measurements[i] = newCurrent - baseline;
+        display.boilerUpdate(measurements[i], i);
     }
 
     Serial.print("Boiler Power Measurements: ");

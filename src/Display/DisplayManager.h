@@ -12,6 +12,7 @@ public:
 
     void init();
     void setup();
+    void boilerUpdate(int boilerMeasurement, int index);
 
     void printStatus(bool isBoilerOn, float currentImport, int energyExport, int energyStored, int percentage);
 
