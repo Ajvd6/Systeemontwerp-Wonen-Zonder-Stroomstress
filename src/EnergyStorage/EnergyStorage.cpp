@@ -28,7 +28,7 @@ EnergyStorage::EnergyStorage(int boilerPin, int ledBoilerPin, int energyExportBu
     _boilerCheckRunning(false) {}
 
 void EnergyStorage::init(int maxBoilerPower) {
-    const float STORAGE_SECONDS = 10.0f;
+    const float STORAGE_SECONDS = 1.5f; // faster response to sunlight and boiler state changes
 
     _maxBoilerPower = maxBoilerPower;
     _storageCapacity = _maxBoilerPower * STORAGE_SECONDS;
