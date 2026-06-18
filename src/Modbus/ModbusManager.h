@@ -37,8 +37,9 @@ public:
 
     // Accessors
     float getTotalCurrent() const {
-        if (_data.activePower < 0) {
-            return 0;
+        // Display total current only when importing. If any export is present, show zero.
+        if (_data.activePower < 0 || _data.wattageExport > 0.0f) {
+            return 0.0f;
         }
         return _data.totalCurrent;
     }
